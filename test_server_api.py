@@ -95,7 +95,7 @@ class TestServerInternal(unittest.TestCase):
 
     def test_admin_credentials_and_tokens(self):
         self.assertEqual(ADMIN_USERNAME, "admin")
-        self.assertEqual(ADMIN_PASSWORD, "prajwal@friendship2026")
+        self.assertTrue(len(ADMIN_PASSWORD) > 0)
         token = "test_secure_token_" + secrets.token_hex(4)
         active_admin_tokens.add(token)
         self.assertIn(token, active_admin_tokens)

@@ -676,6 +676,10 @@ class FriendshipMeterHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+# Vercel entrypoint exports
+app = FriendshipMeterHandler
+handler = FriendshipMeterHandler
+
 def run_server():
     init_db()
     server_address = ("", PORT)

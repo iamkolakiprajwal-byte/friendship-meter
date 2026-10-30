@@ -1,0 +1,5 @@
+# Ignore standalone local files from Vercel serverless builds
+server.py
+test_scoring_and_distance.py
+test_server_api.py
+*.db
