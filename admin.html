@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Friendship Meter - Administrator Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FFF8F0;
+      --card: #FFFFFF;
+      --plum: #65536B;
+      --pink: #F6DCE5;
+      --yellow: #F6E8A8;
+      --lavender: #DCD5F7;
+    }
+    body {
+      font-family: 'Quicksand', sans-serif;
+      background-color: var(--bg);
+      color: var(--plum);
+      margin: 0;
+      padding: 24px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid rgba(101,83,107,0.15);
+    }
+    h1 { margin: 0; font-size: 24px; }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      border: 1.5px solid rgba(101,83,107,0.15);
+      box-shadow: 0 4px 12px rgba(101,83,107,0.06);
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(101,83,107,0.1);
+    }
+    th {
+      background: var(--lavender);
+      color: var(--plum);
+      font-weight: 700;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 12px;
+      background: var(--yellow);
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 1.5px solid var(--plum);
+      background: var(--yellow);
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--plum);
+    }
+    .btn-secondary { background: var(--pink); }
+    input {
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid rgba(101,83,107,0.2);
+      margin-right: 8px;
+      font-family: inherit;
+    }
+    #login-box { max-width: 380px; margin: 60px auto; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="login-section" class="card" style="display: block;">
+      <h2>Administrator Login 🔐</h2>
+      <p>Secure management portal for Friendship Meter.</p>
+      <div style="margin: 16px 0;">
+        <input type="text" id="admin-user" placeholder="Username" value="admin" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;">
+        <input type="password" id="admin-pass" placeholder="Password" style="width: 100%; box-sizing: border-box; margin-bottom: 14px;">
+        <button class="btn" onclick="login()">Sign In →</button>
+      </div>
+      <div id="login-error" style="color: #b00; font-size: 13px; font-weight: 600;"></div>
+    </div>
+
+    <div id="dashboard-section" style="display: none;">
+      <header>
+        <div>
+          <h1>Friendship Meter — Admin Dashboard</h1>
+          <span style="font-size: 13px; color: #888;">Logged in as: <strong id="logged-user">admin</strong></span>
+        </div>
+        <div>
+          <button class="btn btn-secondary" onclick="refreshData()">Refresh</button>
+          <button class="btn" onclick="logout()">Sign Out</button>
+        </div>
+      </header>
+
+      <div class="card">
+        <h3>Recent Game Sessions & Consented Location Submissions</h3>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Session ID</th>
+                <th>Player Alias</th>
+                <th>Quiz Score</th>
+                <th>Distance</th>
+                <th>Final Score</th>
+                <th>Result Band</th>
+                <th>Consented GPS</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="sessions-tbody">
+              <tr><td colspan="8">Loading sessions...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let token = localStorage.getItem('fm_admin_token') || '';
+    if (token) showDashboard();
+
+    async function login() {
+      const u = document.getElementById('admin-user').value.trim();
+      const p = document.getElementById('admin-pass').value.trim();
+      const err = document.getElementById('login-error');
+      err.textContent = '';
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({username: u, password: p})
+        });
+        const data = await res.json();
+        if (res.ok && data.token) {
+          token = data.token;
+          localStorage.setItem('fm_admin_token', token);
+          showDashboard();
+        } else {
+          err.textContent = data.error || 'Authentication failed.';
+        }
+      } catch (e) {
+        err.textContent = 'Server connection error.';
+      }
+    }
+
+    function logout() {
+      if (token) {
+        fetch('/api/admin/logout', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({token})
+        });
+      }
+      token = '';
+      localStorage.removeItem('fm_admin_token');
+      document.getElementById('login-section').style.display = 'block';
+      document.getElementById('dashboard-section').style.display = 'none';
+    }
+
+    function showDashboard() {
+      document.getElementById('login-section').style.display = 'none';
+      document.getElementById('dashboard-section').style.display = 'block';
+      refreshData();
+    }
+
+    async function refreshData() {
+      const tbody = document.getElementById('sessions-tbody');
+      tbody.innerHTML = '<tr><td colspan="8">Refreshing...</td></tr>';
+      try {
+        const res = await fetch('/api/admin/sessions', {
+          headers: {'Authorization': 'Bearer ' + token}
+        });
+        if (res.status === 401) { logout(); return; }
+        const data = await res.json();
+        const sessions = data.sessions || [];
+        if (sessions.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #888;">No sessions recorded yet. Play the game to record entries!</td></tr>';
+          return;
+        }
+        tbody.innerHTML = sessions.map(s => {
+          let gpsText = 'None';
+          if (s.last_lat && s.last_lon) {
+            gpsText = Number(s.last_lat).toFixed(4) + '°, ' + Number(s.last_lon).toFixed(4) + '° (±' + Math.round(s.last_accuracy || 20) + 'm)';
+          }
+          return `
+            <tr>
+              <td><code>${(s.session_id || '').substring(0,8)}</code></td>
+              <td><strong>${escapeHtml(s.player_alias || 'Friend')}</strong></td>
+              <td>${s.quiz_score !== null && s.quiz_score !== undefined ? s.quiz_score : '-'}</td>
+              <td>${s.distance_km ? Number(s.distance_km).toFixed(1) + ' km' : '-'}</td>
+              <td><span class="badge">${s.final_score !== null && s.final_score !== undefined ? s.final_score : '-'}</span></td>
+              <td>${escapeHtml(s.result_band || '-')}</td>
+              <td>${gpsText}</td>
+              <td style="font-size: 12px; color: #666;">${s.created_at ? s.created_at.substring(0,16).replace('T', ' ') : '-'}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="8" style="color: red;">Error fetching data.</td></tr>';
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+  </script>
+</body>
+</html>

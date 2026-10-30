@@ -8,7 +8,7 @@
     },
     {
       "source": "/admin",
-      "destination": "/api/index.py?action=admin"
+      "destination": "/admin.html"
     },
     {
       "source": "/",
