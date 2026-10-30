@@ -18,7 +18,7 @@ import urllib.request
 import urllib.error
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 from datetime import datetime
 
 # --- Environment Configuration ---
@@ -140,6 +140,34 @@ class handler(BaseHTTPRequestHandler):
         else:
             self._send_error(f"File {filename} not found", HTTPStatus.NOT_FOUND)
 
+    def _get_route(self):
+        parsed = urlparse(self.path)
+        qs = parse_qs(parsed.query)
+        action = qs.get("action", [""])[0].strip("/")
+        path = parsed.path
+        forwarded = (self.headers.get("x-forwarded-uri") or 
+                     self.headers.get("x-matched-path") or 
+                     self.headers.get("x-invoke-path") or "")
+        return {
+            "action": action,
+            "path": path,
+            "forwarded": forwarded
+        }
+
+    def _matches(self, r, target):
+        action = r["action"]
+        path = r["path"]
+        fwd = r["forwarded"]
+        return (
+            action == target or
+            action.endswith("/" + target) or
+            action.startswith(target) or
+            path.endswith("/" + target) or
+            path.endswith("/api/" + target) or
+            target in fwd or
+            target in path
+        )
+
     def do_OPTIONS(self):
         self.send_response(HTTPStatus.NO_CONTENT)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -148,23 +176,23 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        parsed = urlparse(self.path)
-        path = parsed.path
+        r = self._get_route()
+        path = r["path"]
 
         # Root static file serving
-        if path in ("/", "/index.html", ""):
+        if path in ("/", "/index.html", "") or r["action"] in ("", "index.html"):
             self._serve_file("index.html", "text/html; charset=utf-8")
             return
 
-        if path == "/style.css" or path.endswith("/style.css"):
+        if self._matches(r, "style.css"):
             self._serve_file("style.css", "text/css; charset=utf-8")
             return
 
-        if path == "/app.js" or path.endswith("/app.js"):
+        if self._matches(r, "app.js"):
             self._serve_file("app.js", "application/javascript; charset=utf-8")
             return
 
-        if path.endswith("/api/config") or path == "/api/config":
+        if self._matches(r, "config"):
             self._send_json({
                 "appName": "Friendship Meter",
                 "hasReferenceLocation": bool(PRAJWAL_LAT and PRAJWAL_LON),
@@ -175,11 +203,7 @@ class handler(BaseHTTPRequestHandler):
             })
             return
 
-        if path.endswith("/admin") or path == "/admin":
-            self._serve_admin_html()
-            return
-
-        if path.endswith("/api/admin/sessions") or path == "/api/admin/sessions":
+        if self._matches(r, "admin/sessions"):
             auth_header = self.headers.get("Authorization", "")
             token = auth_header.replace("Bearer ", "").strip()
             if not token or token not in active_admin_tokens:
@@ -220,7 +244,7 @@ class handler(BaseHTTPRequestHandler):
                     FROM sessions s
                     ORDER BY s.created_at DESC
                     """)
-                    sessions = [dict(r) for r in cursor.fetchall()]
+                    sessions = [dict(row) for row in cursor.fetchall()]
                     conn.close()
                 except Exception:
                     sessions = []
@@ -228,11 +252,14 @@ class handler(BaseHTTPRequestHandler):
             self._send_json({"sessions": sessions})
             return
 
+        if self._matches(r, "admin"):
+            self._serve_admin_html()
+            return
+
         self._send_error("Not found", HTTPStatus.NOT_FOUND)
 
     def do_POST(self):
-        parsed = urlparse(self.path)
-        path = parsed.path
+        r = self._get_route()
 
         content_length = int(self.headers.get("Content-Length", 0))
         if content_length > 0:
@@ -246,7 +273,7 @@ class handler(BaseHTTPRequestHandler):
             data = {}
 
         # 1. /api/session -> Save or update session
-        if path.endswith("/api/session") or path == "/api/session":
+        if self._matches(r, "session"):
             session_id = data.get("sessionId") or secrets.token_hex(8)
             alias = data.get("playerAlias", "Friend").strip()
             quiz_score = float(data.get("quizScore", 0))
@@ -295,7 +322,7 @@ class handler(BaseHTTPRequestHandler):
             return
 
         # 2. /api/calculate-distance -> Secure distance calculation
-        if path.endswith("/api/calculate-distance") or path == "/api/calculate-distance":
+        if self._matches(r, "calculate-distance"):
             session_id = data.get("sessionId")
             try:
                 user_lat = float(data.get("latitude"))
@@ -360,7 +387,7 @@ class handler(BaseHTTPRequestHandler):
             return
 
         # 3. /api/location -> Consented Location Submission
-        if path.endswith("/api/location") or path == "/api/location":
+        if self._matches(r, "location"):
             session_id = data.get("sessionId")
             if not session_id:
                 self._send_error("Missing sessionId")
@@ -410,7 +437,7 @@ class handler(BaseHTTPRequestHandler):
             return
 
         # 4. /api/admin/login -> Admin Login
-        if path.endswith("/api/admin/login") or path == "/api/admin/login":
+        if self._matches(r, "admin/login"):
             username = data.get("username", "")
             password = data.get("password", "")
 
@@ -423,7 +450,7 @@ class handler(BaseHTTPRequestHandler):
             return
 
         # 5. /api/admin/logout
-        if path.endswith("/api/admin/logout") or path == "/api/admin/logout":
+        if self._matches(r, "admin/logout"):
             token = data.get("token")
             if token in active_admin_tokens:
                 active_admin_tokens.remove(token)
