@@ -24,7 +24,7 @@ from datetime import datetime
 PRAJWAL_LAT = float(os.environ.get("PRAJWAL_LAT", "13.103691"))
 PRAJWAL_LON = float(os.environ.get("PRAJWAL_LON", "77.570392"))
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "prajwal@friendship2026")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Prajwal@vedika")
 PORT = int(os.environ.get("PORT", "8000"))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "friendship_meter.db")
