@@ -1204,6 +1204,9 @@ html, body {
         <span id="step-badge-text">Friendship Meter</span>
       </div>
       <div class="header-actions">
+        <button id="admin-shortcut-btn" class="icon-btn" aria-label="Admin Dashboard" title="Admin Dashboard">
+          <span>🔐</span>
+        </button>
         <button id="sound-toggle" class="icon-btn" aria-label="Toggle cute sounds" title="Toggle sound effects">
           <span id="sound-icon">🔈</span>
         </button>
@@ -1620,6 +1623,68 @@ html, body {
         </div>
       </section>
 
+      <!-- SCREEN 7: ADMIN DASHBOARD (Directly accessible via /admin or 🔐 icon) -->
+      <section class="screen" id="screen-admin">
+        <div class="screen-content" style="text-align: left; align-items: stretch;">
+          
+          <!-- Admin Login Box -->
+          <div id="spa-admin-login-card" class="dossier-card" style="display: block; padding: 20px; text-align: left;">
+            <div class="diploma-stamp">ADMINISTRATOR PORTAL 🔐</div>
+            <h3 class="section-title" style="margin-top: 6px; font-size: 22px;">Sign in to Dashboard</h3>
+            <p class="section-subtitle" style="margin-bottom: 14px;">View live quiz sessions and consented GPS pings.</p>
+
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label class="input-label" for="spa-admin-user">Username</label>
+              <div class="input-wrapper">
+                <input type="text" id="spa-admin-user" value="admin" autocomplete="username">
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label class="input-label" for="spa-admin-pass">Password</label>
+              <div class="input-wrapper">
+                <input type="password" id="spa-admin-pass" placeholder="Password" autocomplete="current-password">
+              </div>
+            </div>
+
+            <div id="spa-admin-error" style="color: #b00; font-size: 13px; font-weight: 700; margin-bottom: 12px; display: none;"></div>
+
+            <button type="button" class="primary-btn" id="spa-btn-admin-login" style="width: 100%;">
+              <span>Sign In →</span>
+            </button>
+          </div>
+
+          <!-- Admin Dashboard View -->
+          <div id="spa-admin-dashboard-view" style="display: none; width: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+              <div>
+                <h3 style="font-size: 20px; margin: 0; font-family: var(--font-hand); font-weight: bold; color: var(--deep-plum);">Friendship Records 📊</h3>
+                <span style="font-size: 11.5px; color: var(--plum-muted);">Admin: <strong id="spa-logged-user">admin</strong></span>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button type="button" class="btn-retry" id="spa-btn-refresh-sessions" style="padding: 5px 10px;">Refresh ↻</button>
+                <button type="button" class="btn-retry" id="spa-btn-admin-logout" style="padding: 5px 10px; background: var(--blush-pink);">Logout</button>
+              </div>
+            </div>
+
+            <div class="dossier-card" style="padding: 12px; max-height: 480px; overflow-y: auto;">
+              <div id="spa-sessions-list" style="display: flex; flex-direction: column; gap: 10px;">
+                <div style="text-align: center; color: var(--plum-muted); font-size: 13px; padding: 20px 0;">
+                  Loading recorded sessions...
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="bottom-action-bar">
+          <button type="button" class="secondary-btn" id="spa-btn-back-to-game">
+            <span>← Return to Quiz</span>
+          </button>
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -1834,8 +1899,21 @@ html, body {
     initialScore: document.getElementById('screen-initial-score'),
     distanceChallenge: document.getElementById('screen-distance-challenge'),
     finalScore: document.getElementById('screen-final-score'),
-    vacationChallenge: document.getElementById('screen-vacation-challenge')
+    vacationChallenge: document.getElementById('screen-vacation-challenge'),
+    admin: document.getElementById('screen-admin')
   };
+
+  const adminShortcutBtn = document.getElementById('admin-shortcut-btn');
+  const spaAdminLoginCard = document.getElementById('spa-admin-login-card');
+  const spaAdminDashboardView = document.getElementById('spa-admin-dashboard-view');
+  const spaAdminUser = document.getElementById('spa-admin-user');
+  const spaAdminPass = document.getElementById('spa-admin-pass');
+  const spaAdminError = document.getElementById('spa-admin-error');
+  const spaBtnAdminLogin = document.getElementById('spa-btn-admin-login');
+  const spaBtnRefreshSessions = document.getElementById('spa-btn-refresh-sessions');
+  const spaBtnAdminLogout = document.getElementById('spa-btn-admin-logout');
+  const spaSessionsList = document.getElementById('spa-sessions-list');
+  const spaBtnBackToGame = document.getElementById('spa-btn-back-to-game');
 
   const headerBackBtn = document.getElementById('header-back-btn');
   const stepBadgeText = document.getElementById('step-badge-text');
@@ -1953,7 +2031,7 @@ html, body {
     // Header Back button control
     if (name === 'quiz' && state.currentQuizIndex > 0) {
       headerBackBtn.style.visibility = 'visible';
-    } else if (name === 'distanceChallenge') {
+    } else if (name === 'distanceChallenge' || name === 'admin') {
       headerBackBtn.style.visibility = 'visible';
     } else {
       headerBackBtn.style.visibility = 'hidden';
@@ -1985,6 +2063,11 @@ html, body {
       case 'vacationChallenge':
         stepBadgeText.textContent = 'getaway & challenge 🌍';
         quizProgressWrap.style.display = 'none';
+        break;
+      case 'admin':
+        stepBadgeText.textContent = 'Admin Portal 🔐';
+        quizProgressWrap.style.display = 'none';
+        checkAdminAuthState();
         break;
     }
   }
@@ -2596,6 +2679,150 @@ html, body {
     render();
   }
 
+  // --- Admin Portal Handlers ---
+  if (adminShortcutBtn) {
+    adminShortcutBtn.addEventListener('click', () => {
+      triggerHaptic();
+      playPop();
+      if (state.screen === 'admin') {
+        showScreen('welcome');
+      } else {
+        showScreen('admin');
+      }
+    });
+  }
+
+  if (spaBtnBackToGame) {
+    spaBtnBackToGame.addEventListener('click', () => {
+      triggerHaptic();
+      playPop();
+      showScreen('welcome');
+    });
+  }
+
+  if (spaBtnAdminLogin) {
+    spaBtnAdminLogin.addEventListener('click', async () => {
+      triggerHaptic();
+      playPop();
+      const u = spaAdminUser.value.trim();
+      const p = spaAdminPass.value.trim();
+      spaAdminError.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p })
+        });
+        const data = await res.json();
+        if (res.ok && data.token) {
+          localStorage.setItem('fm_admin_token', data.token);
+          playChime();
+          checkAdminAuthState();
+        } else {
+          spaAdminError.textContent = data.error || 'Invalid admin credentials.';
+          spaAdminError.style.display = 'block';
+        }
+      } catch (e) {
+        spaAdminError.textContent = 'Server connection error.';
+        spaAdminError.style.display = 'block';
+      }
+    });
+  }
+
+  if (spaBtnAdminLogout) {
+    spaBtnAdminLogout.addEventListener('click', () => {
+      triggerHaptic();
+      playPop();
+      const token = localStorage.getItem('fm_admin_token');
+      if (token) {
+        fetch('/api/admin/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        }).catch(() => {});
+      }
+      localStorage.removeItem('fm_admin_token');
+      checkAdminAuthState();
+    });
+  }
+
+  if (spaBtnRefreshSessions) {
+    spaBtnRefreshSessions.addEventListener('click', () => {
+      triggerHaptic();
+      playPop();
+      fetchAdminSessions();
+    });
+  }
+
+  function checkAdminAuthState() {
+    const token = localStorage.getItem('fm_admin_token');
+    if (token) {
+      spaAdminLoginCard.style.display = 'none';
+      spaAdminDashboardView.style.display = 'block';
+      fetchAdminSessions();
+    } else {
+      spaAdminLoginCard.style.display = 'block';
+      spaAdminDashboardView.style.display = 'none';
+    }
+  }
+
+  async function fetchAdminSessions() {
+    const token = localStorage.getItem('fm_admin_token');
+    if (!token) return;
+    spaSessionsList.innerHTML = '<div style="text-align: center; color: var(--plum-muted); font-size: 13px; padding: 20px 0;">Refreshing recorded entries...</div>';
+
+    try {
+      const res = await fetch('/api/admin/sessions', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (res.status === 401) {
+        localStorage.removeItem('fm_admin_token');
+        checkAdminAuthState();
+        return;
+      }
+      const data = await res.json();
+      const sessions = data.sessions || [];
+      if (sessions.length === 0) {
+        spaSessionsList.innerHTML = '<div style="text-align: center; color: var(--plum-muted); font-size: 13px; padding: 20px 0;">No sessions recorded yet.<br>Play the quiz to log an entry!</div>';
+        return;
+      }
+
+      spaSessionsList.innerHTML = sessions.map(s => {
+        let gpsText = 'No GPS shared';
+        if (s.last_lat && s.last_lon) {
+          gpsText = `📍 ${Number(s.last_lat).toFixed(4)}°, ${Number(s.last_lon).toFixed(4)}° (±${Math.round(s.last_accuracy || 20)}m)`;
+        }
+        const distStr = s.distance_km ? `${Number(s.distance_km).toFixed(1)} km` : '-';
+        const dateStr = s.created_at ? s.created_at.substring(0, 16).replace('T', ' ') : '';
+        return `
+          <div style="background: var(--bg-cream); border: 1.5px solid var(--plum-light); border-radius: var(--radius-sm); padding: 12px; font-size: 12.5px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+              <strong style="font-size: 14.5px; color: var(--deep-plum);">${escapeHtml(s.player_alias || 'Friend')}</strong>
+              <span class="score-band-badge" style="font-size: 11px; padding: 2px 8px; margin: 0;">${s.final_score !== null && s.final_score !== undefined ? s.final_score + ' pts' : '-'}</span>
+            </div>
+            <div style="color: var(--plum-muted); margin-bottom: 4px;">
+              Band: <strong>${escapeHtml(s.result_band || '-')}</strong> · Distance: <strong>${distStr}</strong>
+            </div>
+            <div style="font-size: 11px; color: #49334d; background: #fff; padding: 4px 8px; border-radius: 6px; border: 1px dashed var(--plum-light); margin-top: 4px;">
+              ${gpsText}
+            </div>
+            <div style="font-size: 10px; color: var(--plum-muted); margin-top: 4px; text-align: right;">
+              ${dateStr}
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      spaSessionsList.innerHTML = '<div style="color: red; text-align: center; font-size: 12px;">Failed to fetch sessions.</div>';
+    }
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
   window.addEventListener('resize', () => {
     if (confettiCanvas) {
       confettiCanvas.width = confettiCanvas.offsetWidth;
@@ -2603,8 +2830,12 @@ html, body {
     }
   });
 
-  // Default initial screen
-  showScreen('welcome');
+  // Check URL on load: if /admin or #admin, show Admin Dashboard!
+  if (window.location.pathname.includes('/admin') || window.location.hash === '#admin') {
+    showScreen('admin');
+  } else {
+    showScreen('welcome');
+  }
 
 })();
 
