@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Friendship Meter ☕✨</title>
+  <meta name="theme-color" content="#FFF8F0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  
+  <!-- Google Fonts: Quicksand (friendly rounded sans-serif) & Patrick Hand (restrained handwritten note) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient floating doodles in background -->
+  <div class="ambient-doodles" aria-hidden="true">
+    <span class="doodle doodle-star-1">✦</span>
+    <span class="doodle doodle-flower-1">✿</span>
+    <span class="doodle doodle-sparkle-1">✧</span>
+    <span class="doodle doodle-star-2">☕</span>
+    <span class="doodle doodle-flower-2">❀</span>
+    <span class="doodle doodle-dot-1">●</span>
+  </div>
+
+  <!-- Mobile phone viewport container -->
+  <div class="app-viewport">
+    
+    <!-- Top header with back button, step badge, and sound toggle -->
+    <header class="app-header">
+      <button id="header-back-btn" class="icon-btn back-btn" aria-label="Go back" style="visibility: hidden;">
+        <span>←</span>
+      </button>
+      <div class="header-badge" id="step-badge">
+        <span class="sparkle-icon">☕</span>
+        <span id="step-badge-text">Friendship Meter</span>
+      </div>
+      <div class="header-actions">
+        <button id="sound-toggle" class="icon-btn" aria-label="Toggle cute sounds" title="Toggle sound effects">
+          <span id="sound-icon">🔈</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Quiz Progress Indicator (Visible during 8 quiz questions) -->
+    <div class="progress-bar-wrap" id="quiz-progress-wrap" style="display: none;">
+      <div class="progress-meta">
+        <span id="quiz-step-label">Question 1 of 8</span>
+        <span id="quiz-percent-label">12%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="quiz-progress-fill" style="width: 12.5%;"></div>
+      </div>
+    </div>
+
+    <!-- Main Screens Container -->
+    <main class="screens-container">
+      
+      <!-- SCREEN 1: WELCOME -->
+      <section class="screen active" id="screen-welcome">
+        <div class="screen-content">
+          <div class="hero-illustration">
+            <div class="doodle-chai-cup">
+              <svg width="88" height="88" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Cup base shadow -->
+                <ellipse cx="50" cy="84" rx="32" ry="6" fill="rgba(101, 83, 107, 0.08)" />
+                <!-- Saucer -->
+                <ellipse cx="50" cy="78" rx="36" ry="6" fill="#F6DCE5" stroke="#65536B" stroke-width="2.2" />
+                <!-- Cup body -->
+                <path d="M26 40 L32 72 Q50 76 68 72 L74 40 Z" fill="#FFF8F0" stroke="#65536B" stroke-width="2.5" />
+                <!-- Cup handle -->
+                <path d="M72 46 C84 46 84 64 70 64" stroke="#65536B" stroke-width="2.5" fill="none" stroke-linecap="round" />
+                <!-- Chai liquid -->
+                <ellipse cx="50" cy="42" rx="22" ry="5" fill="#F6E8A8" stroke="#65536B" stroke-width="1.8" />
+                <!-- Steaming aroma waves -->
+                <path d="M42 32 Q40 24 45 18" stroke="#65536B" stroke-width="2" stroke-linecap="round" fill="none" />
+                <path d="M50 34 Q54 26 49 16" stroke="#65536B" stroke-width="2" stroke-linecap="round" fill="none" />
+                <path d="M58 32 Q62 25 57 18" stroke="#65536B" stroke-width="2" stroke-linecap="round" fill="none" />
+                <!-- Cute smiling face on cup -->
+                <circle cx="44" cy="56" r="2" fill="#65536B" />
+                <circle cx="56" cy="56" r="2" fill="#65536B" />
+                <path d="M47 62 Q50 65 53 62" stroke="#65536B" stroke-width="1.8" stroke-linecap="round" fill="none" />
+              </svg>
+            </div>
+            <div class="floating-mini-star star-left">☕</div>
+            <div class="floating-mini-star star-right">✨</div>
+          </div>
+
+          <h1 class="handwritten-title">Friendship Meter</h1>
+          <p class="body-text">
+            Chai, late-night calls, Marathi expressions, friendly teasing, and spontaneous plans. Let's see your friendship vibe!
+          </p>
+
+          <div class="form-group alias-box">
+            <label class="input-label" for="player-alias-input">
+              Tula kay mhanto apan?
+              <span class="label-hint">(enter your nickname)</span>
+            </label>
+            <div class="input-wrapper">
+              <input type="text" id="player-alias-input" maxlength="24" placeholder="e.g. Tanvi, Sahil, Master of Chai..." autocomplete="off">
+              <span class="input-icon">✏️</span>
+            </div>
+          </div>
+
+          <div class="pill-stats-card">
+            <div class="pill-stat">
+              <span class="pill-stat-icon">☕</span>
+              <span class="pill-stat-text">8 questions</span>
+            </div>
+            <div class="pill-divider">·</div>
+            <div class="pill-stat">
+              <span class="pill-stat-icon">💬</span>
+              <span class="pill-stat-text">English-Marathi</span>
+            </div>
+            <div class="pill-divider">·</div>
+            <div class="pill-stat">
+              <span class="pill-stat-icon">✨</span>
+              <span class="pill-stat-text">100% chill</span>
+            </div>
+          </div>
+
+          <div class="handwritten-note">
+            "no overthinking yaar, just gut feeling"
+          </div>
+        </div>
+
+        <div class="bottom-action-bar">
+          <button class="primary-btn" id="btn-start-quiz">
+            <span>chal, suru karu!</span>
+            <span class="btn-arrow">→</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- SCREEN 2: 8-QUESTION QUIZ (Single question per screen with back nav & persistence) -->
+      <section class="screen" id="screen-quiz">
+        <div class="screen-content">
+          <div class="quiz-header-tag">
+            <span id="quiz-question-tag">question 1 of 8</span>
+          </div>
+
+          <h2 class="section-title quiz-question-title" id="quiz-question-title">
+            What's your ideal plan?
+          </h2>
+          <p class="section-subtitle" id="quiz-question-sub">
+            choose whatever feels most like you.
+          </p>
+
+          <!-- Answer options cards -->
+          <div class="quiz-options-list" id="quiz-options-container">
+            <!-- Populated dynamically via JS -->
+          </div>
+
+          <!-- Subtle inline reaction bubble -->
+          <div class="reaction-bubble" id="quiz-reaction" style="opacity: 0;">
+            <span class="reaction-doodle">✦</span>
+            <span class="reaction-text" id="quiz-reaction-text">ekdum relatable!</span>
+          </div>
+        </div>
+
+        <div class="bottom-action-bar">
+          <div class="quiz-nav-row">
+            <button class="nav-prev-btn" id="btn-prev-question" style="display: none;">
+              <span>← maage</span>
+            </button>
+            <div class="quiz-footer-hint" id="quiz-hint-text">
+              <span>tap any option to proceed</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 3: INITIAL FRIENDSHIP SCORE -->
+      <section class="screen" id="screen-initial-score">
+        <div class="screen-content">
+          <div class="reveal-badge-wrap">
+            <span class="reveal-badge">quiz complete! ☕</span>
+          </div>
+
+          <h1 class="handwritten-title">Vibe Check: Initial Score</h1>
+          <p class="body-text">
+            Here's what your answers say so far! Note: this is a playful game score, not a scientific measurement.
+          </p>
+
+          <!-- Initial Score Card -->
+          <div class="dossier-card score-card">
+            <div class="diploma-stamp">INITIAL QUIZ SCORE (OUT OF 100)</div>
+            
+            <div class="score-display-wrap">
+              <span class="score-number" id="initial-score-num">82</span>
+              <span class="score-total">/100</span>
+            </div>
+
+            <!-- Score Progress Bar -->
+            <div class="score-bar-track">
+              <div class="score-bar-fill" id="initial-score-bar" style="width: 82%;"></div>
+            </div>
+
+            <div class="score-band-badge" id="initial-score-band">
+              Gappa Champion
+            </div>
+
+            <p class="score-description" id="initial-score-desc">
+              Mast frequency match aahe! Chai banti hai and unlimited topics to discuss.
+            </p>
+
+            <div class="transparency-note">
+              <span>⚠️ Important: This is an initial score only. The final score will be recalculated after the distance challenge!</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bottom-action-bar">
+          <button class="primary-btn" id="btn-to-distance-challenge">
+            <span>Next: Distance Challenge 📍</span>
+            <span class="btn-arrow">→</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- SCREEN 4: DISTANCE CHALLENGE -->
+      <section class="screen" id="screen-distance-challenge">
+        <div class="screen-content">
+          <div class="hero-illustration">
+            <div class="distance-pins-graphic">
+              <div class="pin pin-you">
+                <span class="pin-icon">📍</span>
+                <span class="pin-label">You</span>
+              </div>
+              <div class="pin-dotted-track">
+                <div class="pin-pulse-dot" id="pin-pulse-dot"></div>
+              </div>
+              <div class="pin pin-prajwal">
+                <span class="pin-icon">📍</span>
+                <span class="pin-label">Prajwal</span>
+              </div>
+            </div>
+          </div>
+
+          <h2 class="handwritten-title">Okay waittt… ek important question aahe! 📍</h2>
+          <p class="body-text">
+            Apan quiz tar complete kela… but actually tu Prajwal pasun kiti lamb aahe?
+          </p>
+
+          <!-- Plain & simple consent note -->
+          <div class="transparency-card">
+            <div class="transparency-header">
+              <span class="info-icon">📍</span>
+              <strong>Location Access for Distance</strong>
+            </div>
+            <p class="transparency-body">
+              Your device location will be used strictly to calculate the straight-line distance to Prajwal for your friendship score.
+            </p>
+            <div class="transparency-guarantee">
+              <span>🌿 High accuracy GPS • Evaluated securely • No background tracking</span>
+            </div>
+          </div>
+
+          <!-- Distance Trigger Button -->
+          <div class="distance-action-group" id="distance-trigger-group">
+            <button type="button" class="primary-btn big-pulse" id="btn-calc-distance">
+              <span>Chal, distance calculate karu ♡</span>
+            </button>
+            <button type="button" class="text-link-btn" id="btn-back-to-score">
+              <span>← Back to quiz score</span>
+            </button>
+          </div>
+
+          <!-- Status & Error Box -->
+          <div class="status-box" id="distance-status-box" style="display: none;">
+            <div class="status-spinner" id="distance-spinner"></div>
+            <span id="distance-status-text">Requesting device GPS...</span>
+            <button type="button" class="btn-retry" id="btn-distance-retry" style="display: none;">Retry ↻</button>
+          </div>
+
+          <!-- Distance Result Card (revealed upon actual calculation) -->
+          <div class="distance-result-card" id="distance-result-card" style="display: none;">
+            <div class="result-header">
+              <span>You ↔ Prajwal</span>
+            </div>
+            <div class="distance-number-highlight" id="distance-val-text">
+              12.4 km apart
+            </div>
+            <div class="distance-caption-badge" id="distance-caption-text">
+              Arey, almost same area! Chai break banto.
+            </div>
+            <p class="distance-disclaimer">
+              *Estimated straight-line distance from measured device coordinates. Device accuracy and terrain conditions may vary.
+            </p>
+          </div>
+
+        </div>
+
+        <div class="bottom-action-bar" id="distance-continue-bar" style="display: none;">
+          <button class="primary-btn" id="btn-to-final-score">
+            <span>Calculate Final Score (80% + 20%)</span>
+            <span class="btn-arrow">→</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- SCREEN 5: FINAL FRIENDSHIP SCORE (80% QUIZ + 20% DISTANCE) -->
+      <section class="screen" id="screen-final-score">
+        <div class="screen-content">
+          <div class="reveal-badge-wrap">
+            <span class="reveal-badge">Final Friendship Score 🎉</span>
+          </div>
+
+          <h1 class="handwritten-title">Official Friendship Rating</h1>
+          <p class="body-text">
+            Calculated with our deterministic formula: 80% quiz compatibility + 20% distance factor!
+          </p>
+
+          <div class="dossier-card final-score-card">
+            <div class="diploma-stamp">FINAL RECALCULATED SCORE</div>
+            
+            <div class="score-display-wrap">
+              <span class="score-number highlight" id="final-score-num">86</span>
+              <span class="score-total">/100</span>
+            </div>
+
+            <!-- Score Bar -->
+            <div class="score-bar-track">
+              <div class="score-bar-fill final-fill" id="final-score-bar" style="width: 86%;"></div>
+            </div>
+
+            <div class="score-band-badge final-badge" id="final-score-band">
+              Gappa Champion
+            </div>
+
+            <!-- Breakdown cards -->
+            <div class="score-breakdown-grid">
+              <div class="breakdown-item">
+                <span class="breakdown-label">Quiz Score (80%)</span>
+                <span class="breakdown-val" id="breakdown-quiz-val">82 pts</span>
+                <span class="breakdown-contrib" id="breakdown-quiz-contrib">65.6 pts</span>
+              </div>
+              <div class="breakdown-item">
+                <span class="breakdown-label">Distance Score (20%)</span>
+                <span class="breakdown-val" id="breakdown-dist-val">80 pts</span>
+                <span class="breakdown-contrib" id="breakdown-dist-contrib">16.0 pts</span>
+              </div>
+            </div>
+
+            <p class="score-description" id="final-score-desc">
+              Full-on chemistry! Kilometres don't decide how close friends are, but this math looks pretty solid.
+            </p>
+
+            <div class="game-mechanic-disclaimer">
+              <span>ℹ️ Friendly reminder: The distance weighting is just a fun game mechanic! Real friendship isn't bounded by kilometres.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bottom-action-bar">
+          <button class="primary-btn" id="btn-to-vacation-challenge">
+            <span>Find Our Getaway Vibe 🌍</span>
+            <span class="btn-arrow">→</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- SCREEN 6: COMBINED VACATION DESTINATION + LOCATION CHALLENGE (Single Page!) -->
+      <section class="screen" id="screen-vacation-challenge">
+        <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
+        <div class="screen-content">
+          
+          <h2 class="handwritten-title">Okayyy, where should your vibe take you? 🌍</h2>
+          <p class="body-text">
+            Based on your friendship level, let's find a little getaway that matches your vibe.
+          </p>
+
+          <!-- Vacation Postcard Recommendation -->
+          <div class="postcard-card" id="vacation-postcard">
+            <div class="postcard-stamp">✈️ POSTCARD FROM MAHARASHTRA</div>
+            <div class="postcard-dest-icon" id="postcard-icon">⛰️</div>
+            <h3 class="postcard-title" id="postcard-title">Lonavala & Khandala</h3>
+            <div class="postcard-tagline" id="postcard-tagline">Chai, foggy hills & chikki stops</div>
+            <p class="postcard-description" id="postcard-desc">
+              Perfect hill-station escape for endless gappa, hot pakodas, and scenic viewpoints without unnecessary rush.
+            </p>
+            <div class="postcard-why-matched">
+              <strong>Why it matches your vibe:</strong>
+              <span id="postcard-why-text">Your quiz answers showed high comfort-mode and love for casual conversations over scenic chaos.</span>
+            </div>
+          </div>
+
+          <!-- Integrated Location Challenge Card (Within the same screen) -->
+          <div class="location-challenge-card" id="location-challenge-card">
+            <div class="challenge-header">
+              <span class="challenge-icon">📍</span>
+              <strong>One tiny challenge before we plan your getaway 📍</strong>
+            </div>
+            <p class="challenge-body">
+              Let's see how much you will have to travel from your place to Prajwal.
+            </p>
+
+            <!-- Explicit Consent Notice -->
+            <div class="consent-agreement-box">
+              <label class="consent-checkbox-label">
+                <input type="checkbox" id="consent-agreement-chk" checked>
+                <span>I agree to share my device location with the server for this stage.</span>
+              </label>
+            </div>
+
+            <!-- Single prominent action button -->
+            <button type="button" class="primary-btn pulse-glow" id="btn-go-for-it">
+              <span>Go for it♡</span>
+            </button>
+
+            <!-- Location Challenge Status / Feedback -->
+            <div class="status-box" id="challenge-status-box" style="display: none; margin-top: 14px;">
+              <div class="status-spinner" id="challenge-spinner"></div>
+              <span id="challenge-status-text">Verifying and transmitting location to Prajwal...</span>
+              <button type="button" class="btn-retry" id="btn-challenge-retry" style="display: none;">Retry ↻</button>
+            </div>
+
+            <!-- Successful Reveal Box (Appears strictly on success on this same screen!) -->
+            <div class="reveal-success-box" id="reveal-success-box" style="display: none;">
+              <div class="reveal-trophy">🏆</div>
+              <h3 class="reveal-heading">hehe, challenge completed ♡</h3>
+              <p class="reveal-sub">Bragging rights: <em>acquired.</em></p>
+
+              <div class="coords-result-badge">
+                <div class="coords-row">
+                  <span class="coords-icon">📍</span>
+                  <span class="coords-text" id="coords-text">Lat: 18.5204°, Lon: 73.8567°</span>
+                </div>
+                <div class="coords-accuracy" id="coords-accuracy">
+                  Reported horizontal accuracy: ±14 metres
+                </div>
+                <div class="coords-link-wrap">
+                  <a href="#" target="_blank" rel="noopener noreferrer" class="map-link-btn" id="map-link-btn">
+                    View on Map ↗
+                  </a>
+                </div>
+              </div>
+
+              <!-- Friendship Summary Copy Box -->
+              <div class="summary-share-box">
+                <button type="button" class="secondary-btn" id="btn-copy-summary">
+                  <span>💌 Copy Friendship Dossier</span>
+                </button>
+                <button type="button" class="text-link-btn" id="btn-play-again">
+                  <span>Play again ↺</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

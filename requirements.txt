@@ -1,0 +1,1 @@
+# Zero external dependencies needed for standard server.py (uses standard library: http.server, sqlite3)
