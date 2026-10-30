@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "cleanUrls": true,
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -8,6 +9,11 @@
     {
       "source": "/admin",
       "destination": "/api/index.py"
+    },
+    {
+      "source": "/",
+      "destination": "/index.html"
     }
   ]
 }
+

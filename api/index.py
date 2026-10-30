@@ -126,6 +126,20 @@ class handler(BaseHTTPRequestHandler):
     def _send_error(self, message, status=HTTPStatus.BAD_REQUEST):
         self._send_json({"error": message}, status=status)
 
+    def _serve_file(self, filename, content_type):
+        filepath = os.path.join(BASE_DIR, filename)
+        if os.path.exists(filepath):
+            with open(filepath, "rb") as f:
+                content = f.read()
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(content)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(content)
+        else:
+            self._send_error(f"File {filename} not found", HTTPStatus.NOT_FOUND)
+
     def do_OPTIONS(self):
         self.send_response(HTTPStatus.NO_CONTENT)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -136,6 +150,19 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
+
+        # Root static file serving
+        if path in ("/", "/index.html", ""):
+            self._serve_file("index.html", "text/html; charset=utf-8")
+            return
+
+        if path == "/style.css" or path.endswith("/style.css"):
+            self._serve_file("style.css", "text/css; charset=utf-8")
+            return
+
+        if path == "/app.js" or path.endswith("/app.js"):
+            self._serve_file("app.js", "application/javascript; charset=utf-8")
+            return
 
         if path.endswith("/api/config") or path == "/api/config":
             self._send_json({
