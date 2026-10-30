@@ -31,7 +31,47 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(BASE_DIR, "friendship_meter.db")
+if os.path.exists("/tmp") and os.access("/tmp", os.W_OK):
+    DB_PATH = "/tmp/friendship_meter.db"
+else:
+    DB_PATH = os.path.join(BASE_DIR, "friendship_meter.db")
+
+def init_sqlite():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            session_id TEXT PRIMARY KEY,
+            player_alias TEXT,
+            quiz_score REAL,
+            distance_km REAL,
+            distance_score REAL,
+            final_score REAL,
+            result_band TEXT,
+            destination TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        )
+        """)
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS locations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT,
+            latitude REAL,
+            longitude REAL,
+            accuracy_m REAL,
+            consented INTEGER,
+            consent_timestamp TEXT,
+            created_at TEXT
+        )
+        """)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print("init_sqlite error:", e)
+
+init_sqlite()
 
 active_admin_tokens = set()
 
@@ -92,7 +132,7 @@ def supabase_request(endpoint, method="GET", payload=None, query=""):
         "apikey": SUPABASE_KEY,
         "Authorization": f"Bearer {SUPABASE_KEY}",
         "Content-Type": "application/json",
-        "Prefer": "return=representation"
+        "Prefer": "resolution=merge-duplicates,return=representation"
     }
     if method in ("POST", "PATCH") and payload:
         data = json.dumps(payload).encode("utf-8")
@@ -102,10 +142,14 @@ def supabase_request(endpoint, method="GET", payload=None, query=""):
     try:
         with urllib.request.urlopen(req) as resp:
             body = resp.read().decode("utf-8")
-            return json.loads(body) if body else {}
+            return json.loads(body) if body else []
+    except urllib.error.HTTPError as he:
+        err_body = he.read().decode("utf-8")
+        print(f"Supabase HTTP {he.code} for {endpoint}:", err_body)
+        return {"_error": err_body, "code": he.code}
     except Exception as e:
         print("Supabase request error:", e)
-        return None
+        return {"_error": str(e)}
 
 # --- Main HTTP Handler (Works on Vercel & Standard Python) ---
 class handler(BaseHTTPRequestHandler):
@@ -210,14 +254,24 @@ class handler(BaseHTTPRequestHandler):
                 self._send_error("Unauthorized administrator access", HTTPStatus.UNAUTHORIZED)
                 return
 
-            # Retrieve sessions from Supabase or local SQLite
             sessions = []
+            db_status = "sqlite"
+            error_hint = None
+
             if SUPABASE_URL and SUPABASE_KEY:
-                data = supabase_request("sessions", query="?select=*,locations(*)&order=created_at.desc")
-                if data is not None:
-                    for s in data:
-                        locs = s.get("locations") or []
-                        last_loc = locs[-1] if locs else {}
+                db_status = "supabase"
+                s_resp = supabase_request("sessions", query="?select=*&order=created_at.desc")
+                l_resp = supabase_request("locations", query="?select=*&order=created_at.desc")
+
+                if isinstance(s_resp, list):
+                    loc_map = {}
+                    if isinstance(l_resp, list):
+                        for loc in l_resp:
+                            sid = loc.get("session_id")
+                            if sid and sid not in loc_map:
+                                loc_map[sid] = loc
+                    for s in s_resp:
+                        last_loc = loc_map.get(s.get("session_id"), {})
                         sessions.append({
                             "session_id": s.get("session_id"),
                             "player_alias": s.get("player_alias"),
@@ -230,26 +284,40 @@ class handler(BaseHTTPRequestHandler):
                             "last_accuracy": last_loc.get("accuracy_m"),
                             "created_at": s.get("created_at")
                         })
+                elif isinstance(s_resp, dict) and "_error" in s_resp:
+                    error_hint = f"Supabase notice: {s_resp.get('_error')}"
             else:
-                # SQLite fallback
-                try:
-                    conn = sqlite3.connect(DB_PATH)
-                    conn.row_factory = sqlite3.Row
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                    SELECT s.*, 
-                           (SELECT l.latitude FROM locations l WHERE l.session_id = s.session_id ORDER BY l.id DESC LIMIT 1) as last_lat,
-                           (SELECT l.longitude FROM locations l WHERE l.session_id = s.session_id ORDER BY l.id DESC LIMIT 1) as last_lon,
-                           (SELECT l.accuracy_m FROM locations l WHERE l.session_id = s.session_id ORDER BY l.id DESC LIMIT 1) as last_accuracy
-                    FROM sessions s
-                    ORDER BY s.created_at DESC
-                    """)
-                    sessions = [dict(row) for row in cursor.fetchall()]
-                    conn.close()
-                except Exception:
-                    sessions = []
+                error_hint = "SUPABASE_URL and SUPABASE_KEY not added in Vercel settings. Using temporary SQLite."
 
-            self._send_json({"sessions": sessions})
+            # Merge SQLite sessions
+            try:
+                init_sqlite()
+                conn = sqlite3.connect(DB_PATH)
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute("""
+                SELECT s.*, 
+                       (SELECT l.latitude FROM locations l WHERE l.session_id = s.session_id ORDER BY l.id DESC LIMIT 1) as last_lat,
+                       (SELECT l.longitude FROM locations l WHERE l.session_id = s.session_id ORDER BY l.id DESC LIMIT 1) as last_lon,
+                       (SELECT l.accuracy_m FROM locations l WHERE l.session_id = s.session_id ORDER BY l.id DESC LIMIT 1) as last_accuracy
+                FROM sessions s
+                ORDER BY s.created_at DESC
+                """)
+                sqlite_rows = [dict(row) for row in cursor.fetchall()]
+                conn.close()
+
+                existing_ids = {s.get("session_id") for s in sessions}
+                for sq in sqlite_rows:
+                    if sq.get("session_id") not in existing_ids:
+                        sessions.append(sq)
+            except Exception as e:
+                print("SQLite read error:", e)
+
+            self._send_json({
+                "sessions": sessions,
+                "db_status": db_status,
+                "error_hint": error_hint
+            })
             return
 
         if self._matches(r, "admin"):
@@ -278,18 +346,27 @@ class handler(BaseHTTPRequestHandler):
             alias = data.get("playerAlias", "Friend").strip()
             quiz_score = float(data.get("quizScore", 0))
             result_band = data.get("resultBand", get_result_band(quiz_score))
+            distance_km = data.get("distanceKm")
+            final_score = data.get("finalScore")
             now_iso = datetime.utcnow().isoformat() + "Z"
 
             if SUPABASE_URL and SUPABASE_KEY:
                 # Supabase Upsert
-                supabase_request("sessions", method="POST", payload={
+                s_payload = {
                     "session_id": session_id,
                     "player_alias": alias,
                     "quiz_score": quiz_score,
                     "result_band": result_band,
                     "updated_at": now_iso
-                })
-                # Insert individual answers
+                }
+                if distance_km is not None:
+                    s_payload["distance_km"] = float(distance_km)
+                if final_score is not None:
+                    s_payload["final_score"] = float(final_score)
+
+                supabase_request("sessions", method="POST", payload=s_payload)
+                
+                # Insert individual answers if present
                 answers = data.get("answers", [])
                 for ans in answers:
                     supabase_request("answers", method="POST", payload={
@@ -299,24 +376,27 @@ class handler(BaseHTTPRequestHandler):
                         "selected_text": ans.get("optText", ""),
                         "score_val": ans.get("scoreVal", 0)
                     })
-            else:
-                # SQLite fallback
-                try:
-                    conn = sqlite3.connect(DB_PATH)
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                    INSERT INTO sessions (session_id, player_alias, created_at, updated_at, quiz_score, result_band)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(session_id) DO UPDATE SET
-                        player_alias=excluded.player_alias,
-                        updated_at=excluded.updated_at,
-                        quiz_score=excluded.quiz_score,
-                        result_band=excluded.result_band
-                    """, (session_id, alias, now_iso, now_iso, quiz_score, result_band))
-                    conn.commit()
-                    conn.close()
-                except Exception:
-                    pass
+
+            # Always save to local SQLite container as well
+            try:
+                init_sqlite()
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("""
+                INSERT INTO sessions (session_id, player_alias, created_at, updated_at, quiz_score, result_band, distance_km, final_score)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(session_id) DO UPDATE SET
+                    player_alias=excluded.player_alias,
+                    updated_at=excluded.updated_at,
+                    quiz_score=excluded.quiz_score,
+                    result_band=excluded.result_band,
+                    distance_km=COALESCE(excluded.distance_km, sessions.distance_km),
+                    final_score=COALESCE(excluded.final_score, sessions.final_score)
+                """, (session_id, alias, now_iso, now_iso, quiz_score, result_band, distance_km, final_score))
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print("SQLite session write error:", e)
 
             self._send_json({"sessionId": session_id, "status": "saved"})
             return
@@ -374,6 +454,23 @@ class handler(BaseHTTPRequestHandler):
                     "result_band": final_band
                 })
 
+            try:
+                init_sqlite()
+                conn = sqlite3.connect(DB_PATH)
+                c = conn.cursor()
+                c.execute("""
+                UPDATE sessions SET 
+                    distance_km = ?,
+                    distance_score = ?,
+                    final_score = ?,
+                    result_band = ?
+                WHERE session_id = ?
+                """, (dist_km, dist_score, final_score, final_band, session_id))
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print("SQLite distance update error:", e)
+
             self._send_json({
                 "distanceKm": round(dist_km, 2),
                 "distanceDisplay": dist_display,
@@ -415,18 +512,19 @@ class handler(BaseHTTPRequestHandler):
                     "consented": 1,
                     "consent_timestamp": data.get("consentTimestamp") or now_iso
                 })
-            else:
-                try:
-                    conn = sqlite3.connect(DB_PATH)
-                    c = conn.cursor()
-                    c.execute("""
-                    INSERT INTO locations (session_id, latitude, longitude, accuracy_m, consented, consent_timestamp, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (session_id, lat, lon, accuracy, 1, data.get("consentTimestamp") or now_iso, now_iso))
-                    conn.commit()
-                    conn.close()
-                except Exception:
-                    pass
+
+            try:
+                init_sqlite()
+                conn = sqlite3.connect(DB_PATH)
+                c = conn.cursor()
+                c.execute("""
+                INSERT INTO locations (session_id, latitude, longitude, accuracy_m, consented, consent_timestamp, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (session_id, lat, lon, accuracy, 1, data.get("consentTimestamp") or now_iso, now_iso))
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print("SQLite location write error:", e)
 
             self._send_json({
                 "success": True,

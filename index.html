@@ -2212,6 +2212,22 @@ html, body {
     initialScoreDesc.textContent = getBandDescription(state.initialBand);
 
     // Save initial session state to backend
+    const localSess = {
+      session_id: state.sessionId,
+      player_alias: state.playerAlias,
+      quiz_score: state.quizScore,
+      distance_km: state.distanceKm,
+      final_score: state.finalScore,
+      result_band: state.initialBand,
+      created_at: new Date().toISOString()
+    };
+    try {
+      const arr = JSON.parse(localStorage.getItem('fm_cached_sessions') || '[]');
+      const filtered = arr.filter(s => s.session_id !== state.sessionId);
+      filtered.unshift(localSess);
+      localStorage.setItem('fm_cached_sessions', JSON.stringify(filtered.slice(0, 50)));
+    } catch(e) {}
+
     fetch('/api/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2407,6 +2423,32 @@ html, body {
     breakdownQuizContrib.textContent = `+${quizContrib.toFixed(1)} pts`;
     breakdownDistVal.textContent = `${dScore} pts`;
     breakdownDistContrib.textContent = `+${distContrib.toFixed(1)} pts`;
+
+    // Sync final score and distance to backend
+    fetch('/api/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: state.sessionId,
+        playerAlias: state.playerAlias,
+        quizScore: state.quizScore,
+        distanceKm: state.distanceKm,
+        finalScore: state.finalScore,
+        resultBand: state.finalBand
+      })
+    }).catch(() => {});
+
+    // Update local cache
+    try {
+      const arr = JSON.parse(localStorage.getItem('fm_cached_sessions') || '[]');
+      const item = arr.find(s => s.session_id === state.sessionId);
+      if (item) {
+        item.final_score = state.finalScore;
+        item.distance_km = state.distanceKm;
+        item.result_band = state.finalBand;
+      }
+      localStorage.setItem('fm_cached_sessions', JSON.stringify(arr));
+    } catch(e) {}
   }
 
   btnToVacationChallenge.addEventListener('click', () => {
@@ -2499,6 +2541,18 @@ html, body {
   });
 
   function submitConsentedLocation(loc) {
+    // Update local cache
+    try {
+      const arr = JSON.parse(localStorage.getItem('fm_cached_sessions') || '[]');
+      const item = arr.find(s => s.session_id === state.sessionId);
+      if (item) {
+        item.last_lat = loc.latitude;
+        item.last_lon = loc.longitude;
+        item.last_accuracy = loc.accuracy;
+      }
+      localStorage.setItem('fm_cached_sessions', JSON.stringify(arr));
+    } catch(e) {}
+
     fetch('/api/location', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2782,9 +2836,29 @@ html, body {
         return;
       }
       const data = await res.json();
-      const sessions = data.sessions || [];
+      let sessions = data.sessions || [];
+
+      // Merge local browser sessions
+      try {
+        const localCached = JSON.parse(localStorage.getItem('fm_cached_sessions') || '[]');
+        const existingIds = new Set(sessions.map(s => s.session_id));
+        localCached.forEach(ls => {
+          if (!existingIds.has(ls.session_id)) {
+            sessions.push(ls);
+          }
+        });
+      } catch(e) {}
+
+      if (data.db_status) {
+        document.getElementById('spa-logged-user').textContent = `admin (${data.db_status === 'supabase' ? 'Supabase Cloud ☁️' : 'Local 💾'})`;
+      }
+
       if (sessions.length === 0) {
-        spaSessionsList.innerHTML = '<div style="text-align: center; color: var(--plum-muted); font-size: 13px; padding: 20px 0;">No sessions recorded yet.<br>Play the quiz to log an entry!</div>';
+        let msg = '<div style="text-align: center; color: var(--plum-muted); font-size: 13px; padding: 20px 0;">No sessions recorded yet.<br>Play the quiz to log an entry!</div>';
+        if (data.error_hint) {
+          msg += `<div style="margin-top: 10px; font-size: 11px; color: #b44; background: #fff; padding: 8px; border-radius: 6px; border: 1px dashed #b44;">Notice: ${escapeHtml(data.error_hint)}</div>`;
+        }
+        spaSessionsList.innerHTML = msg;
         return;
       }
 
